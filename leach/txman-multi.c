@@ -24,9 +24,9 @@ void algorithm(struct node* now) {
     int N = ROUND;
 
     for(int i=0; i<ROUND; i++) R[i] = 0;
-    if(!now->is_cluster_head) {
+    if(now->clusterHead >= 0) {
         for(int i=0; i<now->tm_length; i++)
-        now->tm[i].N = now->tm[i].deadline-1;
+            now->tm[i].N = now->tm[i].deadline-1;
     }
 
     for(int i=now_time; i<N; i++) {

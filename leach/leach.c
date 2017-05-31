@@ -38,9 +38,10 @@ void cluster_build() {
                 min_cluster = cluster_head[j];
             }
         }
-        if(nodes[i].is_cluster_head) continue;
+        if(nodes[i].clusterHead < 0) continue;
         nodes[min_cluster].clusters[nodes[min_cluster].cluster_length] = i;
         nodes[min_cluster].cluster_length++;
+        nodes[i].clusterHead = min_cluster;
     }
 
     return;
@@ -103,12 +104,13 @@ void generate_measurements() {
         nodes[i].tm[tmlength].N = 10+now_time;
         nodes[i].tm[tmlength].size = SENSOR_DATA;
         nodes[i].tm_length++;
+        nodes[i].self_gen++;
+        nodes[i].states[now_time] = nodes[i].tm_length;
     }
 }
 
 int main(int argc, char* argv[]) {
     int cluster_dist[NUMBER_OF_CLUSTER*4];
-    int valid[NUMBER_OF_NODES];
     int alive_count, temp1, temp2;
     FILE* nodefile = fopen(argv[1], "r");
     double p = (double)NUMBER_OF_CLUSTER/(double)NUMBER_OF_NODES;
@@ -146,20 +148,20 @@ int main(int argc, char* argv[]) {
 
         if(now_time%(NUMBER_OF_NODES/NUMBER_OF_CLUSTER) == 0)
             for(int i=0; i<NUMBER_OF_NODES; i++)
-                valid[i] = 1;
+                nodes[i].is_clustered = 0;
 
         // select next-now_time CH
         for(int i=0; i<NUMBER_OF_NODES; i++) {
             double prob = genrand64_real1();
             double t = p/(1-p*(now_time%(NUMBER_OF_NODES/NUMBER_OF_CLUSTER)));
 
-            if(prob <= t && valid[i] && nodes[i].energy > 0.1) {
+            if(prob <= t && !nodes[i].is_clustered && nodes[i].energy > 0.1) {
                 cluster_head[number_of_cluster++] = i;
-                nodes[i].is_cluster_head = 1;
-                valid[i] = 0;
+                nodes[i].clusterHead = -1;
+                nodes[i].is_clustered = 1;
             }
             else
-                nodes[i].is_cluster_head = 0;
+                nodes[i].clusterHead = 0;
         }
 
         cluster_build();

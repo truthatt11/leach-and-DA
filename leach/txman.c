@@ -9,9 +9,9 @@ extern int base_station;
 extern int number_of_cluster;
 extern int now_time;
 
-int tx_count = 0;
-int expired = 0;
-int measurements = 0;
+static int tx_count = 0;
+static int expired = 0;
+static int measurements = 0;
 
 double max(double a, double b) {
     return (a>b)?a:b;
@@ -24,10 +24,14 @@ void algorithm(struct node* now) {
     int N = ROUND;
 
     for(int i=0; i<ROUND; i++) R[i] = 0;
-    if(!now->is_cluster_head) {
+    if(now->clusterHead >= 0) {
         for(int i=0; i<now->tm_length; i++)
-        now->tm[i].N = now->tm[i].deadline-1;
+            now->tm[i].N = now->tm[i].deadline-1;
+    }else {
+        for(int i=0; i<now->tm_length; i++)
+            now->tm[i].N = now->tm[i].deadline;
     }
+
 
     for(int i=now_time; i<N; i++) {
         int avg = 0;
@@ -58,10 +62,10 @@ void algorithm(struct node* now) {
             A[k] = 1;
         else {
             double rb[ROUND], rn[ROUND];
-            rb[now_time-1] = 1.0;
-            rn[now_time-1] = 0.0;
+            rb[ROUND-1] = 1.0;
+            rn[ROUND-1] = 0.0;
 
-            for(int i=now_time-2; i>=k; i--) {
+            for(int i=ROUND-2; i>=k; i--) {
                 rn[i] = max(0.0, i*rn[i+1]/(i+1) + rb[i+1]/(i+1));
                 rb[i] = max(R[i], rn[i]);
             }
@@ -78,15 +82,27 @@ void algorithm(struct node* now) {
             if(now->tm[i].N < now_time)
                 expired++;
         tx_count += 1;
-        measurements += now->tm_length;
-        now->tm_length = 0;
+        measurements += now->self_gen;
+
+        if(now->clusterHead >= 0) {
+            for(int i=0; i<now->tm_length; i++) {
+                int len = nodes[now->clusterHead].tm_length + i;
+                nodes[now->clusterHead].tm[len].deadline = now->tm[i].deadline;
+                nodes[now->clusterHead].tm[len].N = now->tm[i].N;
+                nodes[now->clusterHead].tm[len].size = now->tm[i].size;
+            }
+
+            nodes[now->clusterHead].tm_length += now->tm_length;
+        }
+
+        now->tm_length = now->self_gen = 0;
     }
 
     return;
 }
 
 void da_policy() {
-    printf("Transmission manager - %d\n", now_time);
+    printf("Transmission manager - epoch %d\n", now_time);
 
     tx_count = 0;
     expired = 0;
